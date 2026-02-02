@@ -2,3 +2,4 @@ asyncio
 aiohttp
 rich
 discord-webhook
+feedparser
