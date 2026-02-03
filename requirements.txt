@@ -1,5 +1,7 @@
 asyncio
 aiohttp
+aiofiles
 rich
-discord-webhook
+discord-webhook[async]
 feedparser
+python-dotenv
