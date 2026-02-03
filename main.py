@@ -1,84 +1,106 @@
 import time
-import aiohttp
 import aiofiles
 import asyncio
 import feedparser
 from feedparser import FeedParserDict
 import argparse
 from rich.console import Console
-from rich.progress import Progress
 from rich.table import Table
+from rich.live import Live
 from discord_webhook import AsyncDiscordWebhook
 from envdefault import EnvDefault
 from dotenv import load_dotenv
+from typing import List
+from datetime import datetime
 
 load_dotenv()
 
-console = Console()
+class SocialEntry:
+    def __init__(self, url : str, posted : datetime):
+        self.url=url
+        self.posted=posted
 
-async def fetch_rss(session : aiohttp.ClientSession, url, progress, task_progress):
-    # console.log(f"Fetching feed: {url}")
-    progress.update(task_progress, description = f"{url} Fetching...")
-    try:
-        async with session.get(url) as response:
-            text = await response.text() or None
-            if text == None:
-                progress.update(f"{url} Failed to fetch ❌")
-            else:
-                progress.update(task_progress, advance=1, description = f"{url} Fetched")
-            return (url, text)
-    except:
-        progress.update(f"{url} Failed to fetch ❌")
-    return(url, None)
+class SocialFeed:
+    def __init__(self, url : str):
+        self.url = url
+        self.etag = None
+        self.modified = None
+        self.modified_parsed = None
+        self.last_checked = None
+        self.entries = List[SocialEntry]
+        self.title = url
+        self.avatar_url = None
+        self.status = "🚩"
 
-async def main(filename : str, webhook_url : str):
-    urls = []
+    async def check(self):
+        self.last_checked = datetime.now()
+        self.status = "⏳"
+
+        res = await asyncio.get_event_loop().run_in_executor(None, feedparser.parse, self.url, self.modified, self.etag)
+        if res.status == 304:
+            # No changes
+            self.status = "✅"
+            return
+        
+        if res.bozo > 1:
+            self.status = "⚠️"
+        else:
+            self.status = "✅"
+
+        self.etag = getattr(res, "etag", None)
+        self.modified = getattr(res, "modified", None)
+        self.modified_parsed = getattr(res, "modified_parsed", None)
+
+        feed = getattr(res, 'feed', None)
+        image = None
+        if feed is not None:
+            self.title = getattr(feed, "title", self.url)
+            image = getattr(feed, "image", None)
+        if image is not None:
+            self.avatar_url = getattr(image, "href", None)
+
+async def check_feeds(feeds : List[SocialFeed]):
+    checks = []
+    for feed in feeds:
+        checks.append(feed.check())
+    await asyncio.gather(*checks)
+
+def render_table(feeds : List[SocialFeed]) -> Table:
+    table = Table(title="Feeds")
+    table.add_column("Source")
+    table.add_column("Status")
+    table.add_column("Last Checked")
+    table.add_column("Last Modified")
+    for feed in feeds:
+        table.add_row(str(feed.title), str(feed.status), str(feed.last_checked), str(feed.modified_parsed))
+    return table
+
+async def render(console : Console, feeds : List[SocialFeed]):
+    with Live(render_table(feeds), auto_refresh=False, console=console) as live:
+        while True:
+            await asyncio.sleep(0.25)
+            live.update(render_table(feeds), refresh=True)
+
+async def main(filename : str, webhook_url : str, should_render : bool):
+    console = Console()
+    feeds = []
     async with aiofiles.open(filename, mode='r') as f:
         async for line in f:
-            urls.append(line)
+            feeds.append(SocialFeed(line))
 
-    if urls.count == 0:
+    if feeds.count == 0:
         console.log(f"\"{filename}\" has no entries")
         return
 
-    with Progress(console=console) as progress:
-        url_progresses = []
-        for url in urls:
-            url_progresses.append(progress.add_task(url, total=2))
-        async with aiohttp.ClientSession() as session:
-            tasks = []
-            for index, url in enumerate(urls):
-                tasks.append(fetch_rss(session, url, progress, url_progresses[index]))
-                            
-            results = await asyncio.gather(*tasks)
+    if should_render == True:
+        asyncio.create_task(render(console, feeds))
 
-        table = Table(title="Results")
-
-        table.add_column("Link")
-        table.add_column("Description")
-        table.add_column("Published")
-
-        webhooks = []
-        for index, (url, text) in enumerate(results):
-            if text == None:
-                continue
-            progress.update(url_progresses[index], description=f"{url} Parsing")
-            feed = feedparser.parse(text)
-            if feed.bozo > 0:
-                progress.update(url_progresses[index], description=f"{url} Parsing failed ❌")
-                continue
-            progress.update(url_progresses[index], advance=1, description=f"{url} Parsed")
-
-            if index != 0:
-                table.add_section()
-
-            for index, e in enumerate(feed.entries):
-                table.add_row(e.link, e.description, e.published)
-                if index == 0:
-                    webhooks.append(send_webhook(webhook_url, e))
-        
-        console.print(table)
-        await asyncio.gather(*webhooks)
+    while True:
+        console.log("Checking feeds...")
+        t = time.time()
+        await check_feeds(feeds)
+        console.log(f"Took {time.time() - t} seconds")
+        await asyncio.sleep(2)
 
 async def send_webhook(webhook_url : str, entry : FeedParserDict):
     webhook = AsyncDiscordWebhook(webhook_url, content = entry.link)
@@ -95,8 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('-wh', '--webhook', action=EnvDefault, type=str, envvar='DISCORD_WEBHOOK',
                         help='A Discord webhook URL. You can generate this for a channel under Edit Channel/Integrations/Webhooks.\n' \
                             'Can also be specified using DISCORD_WEBHOOK environment variable.')
+    parser.add_argument('-r', '--render', action='store_true')
     
     args = parser.parse_args()
-    start_time = time.time()
-    asyncio.run(main(args.filename, args.webhook))
-    console.log(f"Total time taken: {time.time() - start_time} seconds")
+    asyncio.run(main(args.filename, args.webhook, args.render))

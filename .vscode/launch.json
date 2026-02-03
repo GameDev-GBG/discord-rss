@@ -11,7 +11,8 @@
             "program": "${workspaceFolder}/main.py",
             "envFile": "${workspaceFolder}/.env",
             "args": [
-                "${workspaceFolder}/urls.txt"
+                "${workspaceFolder}/urls.txt",
+                "--render"
             ],
             "console": "integratedTerminal"
         }
