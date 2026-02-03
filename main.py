@@ -1,19 +1,22 @@
 import time
 import aiohttp
 import asyncio
-import xml.etree.ElementTree as ET
+import feedparser
+from rich.console import Console
+from rich.progress import Progress
 
-def xml_extract_text(element):
-    if element is not None:
-        return element.text
-    return None
+console = Console()
 
-async def fetch_rss(session, url):
-    print(f"Fetching feed: {url}")
+async def fetch_rss(session, url, progress, task_progress):
+    # console.log(f"Fetching feed: {url}")
+    progress.update(task_progress, description = F"{url} Fetching...")
     async with session.get(url) as response:
-        data = await response.text()
-        print(f"Fetched feed: {url}")
-        return data
+        text = await response.text() or None
+        if text == None:
+            progress.update("{url} Failed to fetch ❌")
+        else:
+            progress.update(task_progress, advance=1, description = "{url} Fetched")
+        return (url, text)
 
 async def main():
     urls = [
@@ -21,23 +24,30 @@ async def main():
         "https://mastodon.gamedev.place/@yukigunigames.rss"
     ]
 
-    async with aiohttp.ClientSession() as session:
-        tasks = [fetch_rss(session, url) for url in urls]
-        results = await asyncio.gather(*tasks)
+    with Progress(console=console) as progress:
+        url_progresses = []
+        for url in urls:
+            url_progresses.append(progress.add_task(url, total=2))
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for index, url in enumerate(urls):
+                tasks.append(fetch_rss(session, url, progress, url_progresses[index]))
+                            
+            results = await asyncio.gather(*tasks)
 
-        for rss_feed in results:
-            root = ET.fromstring(rss_feed)
-            items = root.findall('.//item')
-            for item in items:
-                title = xml_extract_text(item.find('title'))
-                link = xml_extract_text(item.find('link'))
-                description = xml_extract_text(item.find('description'))
-                print(f"Title: {title}")
-                print(f"Description: {description}")
-                print(f"Link: {link}")
-            
+        for index, (url, text) in enumerate(results):
+            if text == None:
+                continue
+            progress.update(url_progresses[index], description=f"{url} Parsing")
+            feed = feedparser.parse(text)
+            if feed.bozo > 0:
+                progress.update(url_progresses[index], description=f"{url} Parsing failed ❌")
+                continue
+            progress.update(url_progresses[index], advance=1, description=f"{url} Parsed")
+
+                
 
 if __name__ == '__main__':
     start_time = time.time()
     asyncio.run(main())
-    print(f"Total time taken: {time.time() - start_time} seconds")
+    console.log(f"Total time taken: {time.time() - start_time} seconds")
