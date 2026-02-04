@@ -5,3 +5,4 @@ rich
 discord-webhook[async]
 feedparser
 python-dotenv
+python-dateutil
