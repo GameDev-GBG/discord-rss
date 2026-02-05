@@ -8,6 +8,3 @@ The scope of this project very limited, and was created specifically for use in 
 
 ## Usage
 `python discord-rss.py --help`
-
-## License
-This project is licensed under the MIT License. See LICENSE.md for details.
