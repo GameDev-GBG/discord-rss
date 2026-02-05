@@ -200,7 +200,8 @@ if __name__ == '__main__':
                             'Can also be specified using DISCORD_WEBHOOK environment variable.')
     parser.add_argument('-s', '--since', type=str,
                         help='Specify a time to use as cutoff point for new posts (yyyy-mm-dd HH:MM). Always in UTC.')
-    parser.add_argument('-r', '--render', action='store_true')
+    parser.add_argument('-r', '--render', action='store_true',
+                        help="Displays application status in a nicely rendered terminal window.")
     
     args = parser.parse_args()
 
