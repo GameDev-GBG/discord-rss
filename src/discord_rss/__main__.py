@@ -19,7 +19,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
-load_dotenv(".env")
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

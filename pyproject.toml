@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling > 1.26", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+[project]
+name = "discord-rss"
+version = "0.0.4"
+dynamic = ["dependencies"]
+authors = [
+    { name="GameDev GBG", email="developer@gamedevgbg.com" },
+]
+description = "Polls RSS feeds and posts updates to Discord via a webhook."
+readme = "README.md"
+requires-python = ">=3.14"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = { file = "LICENSE.md" }
+
+[project.urls]
+Homepage = "https://github.com/GameDev-GBG/discord-rss"
+Issues = "https://github.com/GameDev-GBG/discord-rss/issues"
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]

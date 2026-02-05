@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Main",
+            "name": "Debug",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/discord-rss.py",
+            "program": "${workspaceFolder}/src/discord_rss/__main__.py",
             "envFile": "${workspaceFolder}/.env",
             "args": [
                 "${workspaceFolder}/urls.txt",
