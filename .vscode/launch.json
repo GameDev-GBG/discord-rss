@@ -8,7 +8,7 @@
             "name": "Debug Main",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/main.py",
+            "program": "${workspaceFolder}/discord-rss.py",
             "envFile": "${workspaceFolder}/.env",
             "args": [
                 "${workspaceFolder}/urls.txt",
