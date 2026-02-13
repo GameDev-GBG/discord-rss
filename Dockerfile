@@ -8,4 +8,4 @@ COPY . /app/
 RUN pip install --no-cache-dir .
 
 # App requires: filename argument. Webhook comes from DISCORD_WEBHOOK env var.
-CMD ["python", "-m", "discord_rss", "/data/urls.txt"]
+CMD ["python", "-m", "discord_rss", "/app/urls.txt"]
